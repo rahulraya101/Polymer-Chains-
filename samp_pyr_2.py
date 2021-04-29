@@ -28,15 +28,17 @@ def write_xyz(system,filename,mode, max_part, pid):
                 else:
                         f.write("H{} 0.0000 0.0000 0.0000\n".format(pid))
 # system parameters
-
-nchain = 1
-chain_len = 25    # [mass] = [time]^2/[length]^2
-
-volume = chain_len
-box_l = volume **(1./3.)   
-temperature = 300 #kelvin
 #energy = kT
 #time = 1ps
+
+nchain = 10
+chain_len = 50    # [mass] = [Energy]*( [time]^2/[length]^2)
+unit_length = 1e-9 #now it is from nm to m
+temperature = 300 #kelvin
+kT = 1.38e-23 * temperature
+mass = 1.38*300*1e-29 #in kg it is an internal mass unit [mass] = [Energy]*( [time]^2/[length]^2)
+mass_of_bead = (104.15*1.66e-27)/mass  #in internal unit system for Polystyrene molecule. 
+box_l = (1*25*mass_of_bead*1.38*300*1e-2)**(1./3.)   
 
 system = espressomd.System(box_l = [box_l]*3)
 np.random.seed(seed=42)
@@ -49,9 +51,6 @@ lj_sig = 0.308 #distance b/n sigmabonds in nm
 lj_eps = 1/temperature
 lj_cut = 2.5 * lj_sig
 lj_cap = 20
-
-unit_length = 1e-9 #now it is from nm to m
-kT = 1.38e-23 * temperature
 
 #creating polymer chain
 system.non_bonded_inter[0, 0].wca.set_params(epsilon=lj_eps, sigma= lj_sig)
@@ -73,7 +72,7 @@ for i in range(nchain):
 #        print(system.part[id].bonds)
 write_xyz(system,filename = "partpos.xyz", mode ="w", max_part = len(system.part), pid = 0)    #mode =  A (append) , W (write).    
 obs_file = open('pmr.obs', 'w')
-obs_file.write("# Time\tE_tot\tE_kin\tE_pot\tE_fene\n")
+obs_file.write("# Time\tE_tot\tE_kin\tE_pot\tE_fene\trg\n")
 
 # wormup step
 
@@ -91,7 +90,7 @@ print("Start with minimal distance {}".format(act_min_dist))
 
 # integration
 int_steps = 1000
-int_n_times = 5
+int_n_times = 15
 
 system.integrator.set_steepest_descent(f_max=0, gamma=1e-3,
                                        max_displacement=lj_sig / 100)
@@ -116,7 +115,7 @@ set_file.write("box_l %s\ntime_step %s\nskin %s\n" %
 
 #Integration loop
 
-times, e_tots, e_kins, e_pots, e_fene, rg, rh = [], [], [], [], [], [], []
+times, e_tots, e_kins, e_pots, e_fene, rg = [], [], [], [], [], []
 
 for i in range(int_n_times):
     system.integrator.run(steps=int_steps)
@@ -128,11 +127,12 @@ for i in range(int_n_times):
     e_kin = energy['kinetic']
     e_pot = energy['non_bonded']
     e_fene = energy['bonded']
-    rg = system.analysis.calc_rg()
-    rh = system.analysis.calc_rh()
-    obs_file.write(" %f %f %f %f %f %f %f\n" % (time, e_tot , e_kin , e_pot, e_fene, rg, rh))
-    print(e_fene)
-
+    rg = system.analysis.calc_rg(chain_start= 0, number_of_chains= nchain, chain_length= chain_len)
+#    rh = system.analysis.calc_rh(self, chain_start=None, number_of_chains=None, chain_length=None)
+    obs_file.write(" %f %f %f %f %f %f %f %f %f\n" % (time, e_tot , e_kin , e_pot, e_fene, rg[0],rg[1],rg[2],rg[3]))
+    write_xyz(system,filename = "partpos.xyz", mode ="a", max_part = len(system.part), pid = 0)    #mode =  A (append) , W (write).
+    print("bonded energy:", e_fene)
+    print("Rg:", rg)
 
 
 
