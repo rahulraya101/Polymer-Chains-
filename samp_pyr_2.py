@@ -115,7 +115,7 @@ set_file.write("box_l %s\ntime_step %s\nskin %s\n" %
 
 #Integration loop
 
-times, e_tots, e_kins, e_pots, e_fene, rg = [], [], [], [], [], []
+times, e_tots, e_kins, e_pots, e_fene, rg, rh, re = [], [], [], [], [], [], [], []
 
 for i in range(int_n_times):
     system.integrator.run(steps=int_steps)
@@ -128,11 +128,14 @@ for i in range(int_n_times):
     e_pot = energy['non_bonded']
     e_fene = energy['bonded']
     rg = system.analysis.calc_rg(chain_start= 0, number_of_chains= nchain, chain_length= chain_len)
-#    rh = system.analysis.calc_rh(self, chain_start=None, number_of_chains=None, chain_length=None)
+    rh = system.analysis.calc_rh(chain_start= 0, number_of_chains= nchain, chain_length= chain_len)
+    re = system.analysis.calc_re(chain_start= 0, number_of_chains= nchain, chain_length= chain_len)
     obs_file.write(" %f %f %f %f %f %f %f %f %f\n" % (time, e_tot , e_kin , e_pot, e_fene, rg[0],rg[1],rg[2],rg[3]))
     write_xyz(system,filename = "partpos.xyz", mode ="a", max_part = len(system.part), pid = 0)    #mode =  A (append) , W (write).
     print("bonded energy:", e_fene)
     print("Rg:", rg)
+    print("Rh:", rh) 
+    print("Rh:", re)
 
 
 
